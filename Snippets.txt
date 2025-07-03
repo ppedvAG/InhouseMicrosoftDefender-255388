@@ -1,0 +1,30 @@
+### Verdächtige PowerShell-Befehle finden ###
+
+DeviceProcessEvents
+| where FileName =~ "powershell.exe"
+| where ProcessCommandLine has_any ("DownloadString", "IEX", "Invoke-Expression", "-enc", "-encoded")
+| project timestamp, DeviceName, AccountName = InitiatingProccesAccountName, "SuspiciousCommand" = ProcessCommandLine
+
+
+
+
+### Office-Anwendung startet verdächtige Prozesse ###
+
+DeviceProcessEvents
+| where InitiatingProcessFileName in~  ("winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe")
+| where Filename in~ ("cmd.exe", "powershell.exe", "wscript.exe", "cscript.exe", "mshta.exe")
+| project TimeStamp, DeviceName, AccountName = InitiatingProcessAccountName, "ParentProcess" = InitiatingProcessFileName, 
+"Child-Process" = Filename, "ChildProcessCommand" = ProcessCommandLine
+
+
+
+### Stefans Wunschcode ###
+
+DeviceProcessEvents
+| where FileName has_any ("msiexec.exe", "setup.exe", "install.exe", "installer.exe")
+| where InitiatingProcessFileName has_any ("cmd.exe", "explorer.exe", "powershell.exe", "msedge.exe", "firefox.exe", "chrome.exe")
+| where InitiatingProcessAccountName !~ "system" // Einfacher Ausschluss von SYSTEM
+    and InitiatingProcessAccountName !~ "NT AUTHORITY"
+    and InitiatingProcessParentFileName !~ "ccmecex.exe" // SCCM-Client
+    and InitiatingProcessParentFileName !~ "intunemangementextension.exe" // Intune Client
+| project Timestamp, DeviceName, AccountName = InitiatingProcessAccountName, ProcessCommandLine, InitiatingProcessFileName
